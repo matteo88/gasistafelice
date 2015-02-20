@@ -1,5 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django.template.defaultfilters import slugify
+from django.utils.encoding import smart_str
 
 import os
 import datetime
@@ -50,3 +51,5 @@ def get_attr_file_path(instance, filename, attr_name, base_path="docs"):
     return '%s/%s/%s' % (base_path, instance.resource_type, filename)
 
 
+def get_valid_name(string):
+    return smart_str(slugify(string).replace('-', '_'))
