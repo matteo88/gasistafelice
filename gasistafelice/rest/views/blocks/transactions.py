@@ -7,6 +7,7 @@ from flexi_auth.models import ObjectWithContext
 from gasistafelice.rest.views.blocks.base import BlockSSDataTables, ResourceBlockAction, CREATE_CSV
 from gasistafelice.consts import VIEW_CONFIDENTIAL, CONFIDENTIAL_VERBOSE_HTML, CASH
 from gasistafelice.base.templatetags.accounting_tags import human_readable_account_csv,human_readable_kind, signed_ledger_entry_amount
+from gasistafelice.base.utils import get_valid_name
 
 from django.template.loader import render_to_string
 
@@ -137,16 +138,9 @@ class Block(BlockSSDataTables):
 
     def _create_csv(self, request):
         """ Create CSV of this block transactions
-
-            #MATTEO TOREMOVE: lascio la prima implementazione (da levare
-            ovviamente dall'integrazione) come monito a me stesso -->
-            kiss, kiss e ancora kiss !!
-
-            #NOTA: eliminare nell'integrazione tutte le righe commentate con #OLD:
-
         """
 
-        headers = [_(u'Id'), _(u'Data'), _(u'Account'), _(u'Kind'), _(u'Cash amount'), _(u'Description')]
+        headers = [_(u'Id'), _(u'Data'), _(u'Account'), _(u'Kind'), _(u'Cash amount'), _(u'Balance'), _(u'Description')]
         records = self._get_resource_list(request)
         csvfile = StringIO.StringIO()
 
@@ -158,6 +152,7 @@ class Block(BlockSSDataTables):
                 human_readable_account_csv(res.account),
                 human_readable_kind(res.transaction.kind),
                 signed_ledger_entry_amount(res),
+                res.balance_current,
                 res.transaction.description.encode("utf-8", "ignore")
             ])
 
@@ -167,11 +162,10 @@ class Block(BlockSSDataTables):
             rv = HttpResponseServerError(_('Report not generated'))
         else:
             response = HttpResponse(csv_data, content_type='text/csv')
-            filename = "%(res)s_%(date)s.csv" % {
+            filename = "Conto_%(res)s_%(date)s" % {
                 'res': request.resource,
-                'date' : '{0:%Y%m%d_%H%M}'.format(datetime.datetime.now())
+                'date' : '{0:%Y%m%d}'.format(datetime.datetime.now())
             }
-            response['Content-Disposition'] = "attachment; filename=" + filename
+            response['Content-Disposition'] = "attachment; filename=" + "%s.csv" % get_valid_name(filename)
             rv = response
         return rv
-
