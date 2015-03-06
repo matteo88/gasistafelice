@@ -65,17 +65,65 @@ class GasAccountingProxy(AccountingProxy):
         if refs:
             transaction.add_references(refs)
 
-    def withdraw_from_member_account_update(self, member, updated_amount, refs, date=None):
+    def withdraw_from_member_account_update_or_create(self, member, updated_amount, refs, date=None):
         """
-        WARNING: if you use this method you lose history of updates
         """
 
-        tx = Transaction.objects.get_by_reference(refs).get(kind=GasAccountingProxy.GAS_WITHDRAWAL)
-        if tx:
-            # WARNING: if you update a transaction, you will lose old transaction info. Use with care!
-            update_transaction(tx, amount=updated_amount, date=date)
-            return True
-        return False
+        try:
+            tx = Transaction.objects.get_by_reference(refs).get(kind=GasAccountingProxy.GAS_WITHDRAWAL)
+        except Transaction.MultipleObjectsReturned as e:
+            #TODO: to recompute balance, maybe sa does not recompute correctly on tx delete()
+            txs = Transaction.objects.get_by_reference(refs).filter(kind=GasAccountingProxy.GAS_WITHDRAWAL)
+            for tx in txs:
+                log.debug(u"deleting tx: %s" % tx)
+                tx.delete()
+            self.withdraw_from_member_account(member, updated_amount, refs, date)
+        except Transaction.DoesNotExist as e:
+            log.debug(u"deleting tx: %s" % tx)
+            self.withdraw_from_member_account(member, updated_amount, refs, date)
+        else:
+            tx.delete()
+            self.withdraw_from_member_account(member, updated_amount, refs, date)
+            # TODO: update of not last transaction raises:
+            # Decurtazione ERROR: You cannot modify an entry which is not the latter for this account
+            # update_transaction(tx, amount=updated_amount, date=date)
+
+    def withdraw_from_member_account(self, member, new_amount, refs, order, date=None):
+        """
+        Withdraw a given amount ``new_amount`` of money from the account of a member
+        of this GAS and bestow it to the GAS's cash.
+        
+        If this operation would make that member's account negative, raise a warning.
+
+        If ``member`` is not a member of this GAS, a ``MalformedTransaction`` exception is raised.
+        
+        References for this transaction may be passed as the ``refs`` argument
+        (e.g. a list of GAS member orders this withdrawal is related to).
+        """
+        # Only for test Control if yet exist some transaction for this refs.
+        #computed_amount, existing_txs = self.get_amount_by_gas_member(member, order)
+        #log.debug("ACCOUNTING %(computed_amount)s %(existing_txs)s" % {'computed_amount': computed_amount, 'existing_txs': existing_txs})
+
+        gas = self.subject.instance
+        if member.gas != gas:
+            raise MalformedTransaction(ugettext("A GAS can withdraw only from its members' accounts"))
+        source_account = self.system['/members/' + member.person.uid]
+        target_account = self.system['/cash']
+        #'gas': gas.id_in_des,
+        #WAS: description = "%(person)s %(order)s" % {'person': member.person.report_name, 'order': order.report_name}
+        #NOTE LF: person is a repetition of gasmember person bound
+        description = order.common_name
+        issuer = self.subject
+        log.debug("registering transaction: issuer=%s descr=%s source=%s target=%s" % (
+            issuer, description, source_account, target_account
+        ))
+        transaction = register_simple_transaction(source_account, target_account, new_amount, 
+            description, issuer, date=date, kind=GasAccountingProxy.GAS_WITHDRAWAL
+        )
+        if refs:
+            transaction.add_references(refs)
+
+        # TODO: if this operation would make member's account negative, raise a warning
 
     def get_amount_by_gas_member(self, gasmember, order):
         """
@@ -107,44 +155,6 @@ class GasAccountingProxy(AccountingProxy):
                 'gas': gas.id_in_des, 'order': order
             }))
 
-    def withdraw_from_member_account(self, member, new_amount, refs, order, date=None, comment=""):
-        """
-        Withdraw a given amount ``new_amount`` of money from the account of a member
-        of this GAS and bestow it to the GAS's cash.
-        
-        If this operation would make that member's account negative, raise a warning.
-
-        If ``member`` is not a member of this GAS, a ``MalformedTransaction`` exception is raised.
-        
-        References for this transaction may be passed as the ``refs`` argument
-        (e.g. a list of GAS member orders this withdrawal is related to).
-        """
-        # Only for test Control if yet exist some transaction for this refs.
-        #computed_amount, existing_txs = self.get_amount_by_gas_member(member, order)
-        #log.debug("ACCOUNTING %(computed_amount)s %(existing_txs)s" % {'computed_amount': computed_amount, 'existing_txs': existing_txs})
-
-        gas = self.subject.instance
-        if member.gas != gas:
-            raise MalformedTransaction(ugettext("A GAS can withdraw only from its members' accounts"))
-        source_account = self.system['/members/' + member.person.uid]
-        target_account = self.system['/cash']
-        #'gas': gas.id_in_des,
-        #WAS: description = "%(person)s %(order)s" % {'person': member.person.report_name, 'order': order.report_name}
-        #NOTE LF: person is a repetition of gasmember person bound
-        description = order.common_name
-        if comment:
-            description = u"%s (%s)" % (description, comment)
-        issuer = self.subject
-        log.debug("registering transaction: issuer=%s descr=%s source=%s target=%s" % (
-            issuer, description, source_account, target_account
-        ))
-        transaction = register_simple_transaction(source_account, target_account, new_amount, 
-            description, issuer, date=date, kind=GasAccountingProxy.GAS_WITHDRAWAL
-        )
-        if refs:
-            transaction.add_references(refs)
-
-        # TODO: if this operation would make member's account negative, raise a warning
 
     def pay_supplier_order(self, order, amount, refs=None, descr=None, date=None, multiple=None):
         """

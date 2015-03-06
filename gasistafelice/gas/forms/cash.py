@@ -86,9 +86,6 @@ class EcoGASMemberForm(forms.Form):
     @transaction.commit_on_success
     def save(self):
 
-        #Control logged user KO if superuser
-        #DT: refs = gas.cash_referrers
-        #DT: if refs and request.user in refs:
         if not self.__loggedusr.has_perm(CASH, obj=ObjectWithContext(self.__order.gas)) and \
             not self.__loggedusr == self.__order.referrer_person.user:
             raise PermissionDenied(ugettext("You are not a cash_referrer or the order's referrer, you cannot update GASMembers cash!"))
@@ -106,41 +103,15 @@ class EcoGASMemberForm(forms.Form):
         enabled = self.cleaned_data.get('applied')
 
         if enabled and amounted is not None:
-            log.debug(u"Save EcoGASMemberForm enabled for %s (amount=%s)" % (gm, amounted))
+            #log.debug(u"Save EcoGASMemberForm enabled for %s (amount=%s)" % (gm, amounted))
             # This kind of amount is ever POSITIVE!
             amounted = abs(amounted)
 
             refs = [gm, self.__order]
 
-            original_amounted = self.cleaned_data['original_amounted']
-
-            # If this is an update -> the amount of the NEW transaction 
-            # is the difference between this and the previous one
-            comment=u""
-            if original_amounted is not None:
-                comment = _("[MOD] old_amount=%(old).2f -> new_amount=%(new).2f") % {
-                    'old' : original_amounted, 'new' : amounted
-                }
-                amounted -= original_amounted
-                #KO 14-04-01: # A ledger entry already exists
-                #KO 14-04-01: if original_amounted != amounted:
-                #KO 14-04-01:     gm.gas.accounting.withdraw_from_member_account_update(
-                #KO 14-04-01:         gm, amounted, refs
-                #KO 14-04-01:     )
-
-            #KO 14-04-01: else:
-            if amounted or (amounted is 0 and original_amounted is None):
-                gm.gas.accounting.withdraw_from_member_account(
-                    gm, amounted, refs, self.__order, comment=comment
-                )
-
-#            # Only for test Control if yet exist some transaction for this refs.
-#            computed_amount, existing_txs = gm.gas.accounting.get_amount_by_gas_member(gm, self.__order)
-#            log.debug("BEFORE %(original_amounted)s %(computed_amount)s %(existing_txs)s" % {
-#                    'computed_amount': computed_amount, 
-#                    'existing_txs': existing_txs,
-#                    'original_amounted': original_amounted
-#            })
+            gm.gas.accounting.withdraw_from_member_account_update_or_create(
+                gm, amounted, refs, self.__order
+            )
 
             #Update State if possible
             self.__order.control_economic_state()
