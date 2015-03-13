@@ -2359,7 +2359,7 @@ msgstr "Transizione fattura ERROR: "
 
 #: rest/views/blocks/balance_pact.py:57
 msgid "Transaction pact ERROR: "
-msgstr "Transizione pacchetto ERROR: "
+msgstr "ERRORE nella transazione del patto di solidarietà "
 
 #: rest/views/blocks/basket.py:28
 msgid "Basket"
