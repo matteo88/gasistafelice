@@ -51,13 +51,13 @@ class GasAccountingProxy(AccountingProxy):
         entry_point =  supplier.accounting.system['/incomes/gas/' + gas.uid]
         target_account = supplier.accounting.system['/wallet']
         if multiple:
-            description = "Ord. %s" % multiple
-            description += " %(pact)s" % {'pact': order.pact,}
+            description = u"Ord. %s" % multiple
+            description += u" %(pact)s" % {'pact': order.pact}
         else:
             description = order.common_name
 
         if descr:
-            description += ". %s" % descr.replace(description + ". ", "")
+            description += u". %s" % descr.replace(description + ". ", "")
         issuer =  self.subject
         transaction = register_transaction(source_account, exit_point, entry_point, 
             target_account, amount, description, issuer, date, 'PAYMENT'
