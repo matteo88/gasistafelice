@@ -41,7 +41,7 @@ from gasistafelice.gas.workflow_data import TRANSITION_OPEN, TRANSITION_CLOSE, T
 from gasistafelice.gas.workflow_data import TRANSITION_ARCHIVE, TRANSITION_UNPAID, TRANSITION_CANCEL
 
 
-from gasistafelice.utils import long_date, medium_date
+from gasistafelice.utils import long_date, medium_date, short_date
 
 from flexi_auth.models import ParamRole
 from flexi_auth.utils import register_parametric_role
@@ -287,10 +287,11 @@ class GASSupplierOrder(models.Model, PermissionResource):
     def display_totals(self):
         """Show totals expected, actual and curtailed"""
 
-        return ugettext(u"Expected: %(fam)s euro --> Actual: %(fatt)s euro --> Curtailed: %(eco)s euro") % {
+        return ugettext(u"Expected: <strong>%(fam)s</strong> euro --> Actual: <strong>%(fatt)s</strong> euro --> Curtailed: <strong>%(eco)s</strong> euro %(trans)s") % {
             'fam'    : "%.2f" % round(self.tot_price, 2)
             , 'fatt' : "%.2f" % round(self.invoice_amount or 0, 2)
             , 'eco'  : "%.2f" % round(self.tot_curtail, 2)
+            , 'trans': self.payments_description
         }
 
     def do_transition(self, transition, user):
@@ -1197,6 +1198,37 @@ WHERE order_id = %s \
                    'tot_price' : el.tot_price,
                 })
         return records
+
+    @property
+    def payments_description(self):
+        """
+        Get payment(s) descriptions for this order if almost one payment exists. 
+        Otherwise, it returns an empty string.
+        """
+
+        descr = ""
+        payments = self.gas.accounting.get_payments([self])
+        count = payments.count()
+        
+
+        for index, tx in enumerate(payments):
+            if index == 0:
+                if count > 1:
+                    descr += ugettext(u" --> %s payments: 1" % count)
+                else:
+                    descr += ugettext(u" --> payment: ")
+            else:
+                if count > 1:
+                    descr += ",  %s" % (index+1)
+
+            descr += ugettext(u"[<strong>%(amount)s</strong> euro on %(date)s: %(descr)s]") % {
+            'amount': "%.2f" % round(tx.source.amount, 2), 
+            'date'  : short_date(tx.date).capitalize(),
+            'descr' : tx.description.replace(self.pact.__unicode__(), '')
+        }
+
+        return descr
+
 
     #-----------------------------------------------#
     # InterGAS
