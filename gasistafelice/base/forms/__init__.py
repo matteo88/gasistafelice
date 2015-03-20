@@ -84,6 +84,13 @@ class BasePersonForm(forms.ModelForm):
             elif contact.pk:
                 self.cleaned_data['contact_set'].remove(contact)
 
+        person = self.instance
+        user = person.user
+
+        if user and user.email != person.preferred_email_address:
+            user.email = person.preferred_email_address
+            user.save()
+
         return super(BasePersonForm, self).save(*args, **kw)
 
     class Meta:
