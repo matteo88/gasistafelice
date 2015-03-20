@@ -79,7 +79,8 @@ class GasAccountingProxy(AccountingProxy):
                 tx.delete()
             self.withdraw_from_member_account(member, updated_amount, refs, date)
         except Transaction.DoesNotExist as e:
-            log.debug(u"deleting tx: %s" % tx)
+            for ref in refs:
+                log.debug(u"First curtail for %s" % ref)
             self.withdraw_from_member_account(member, updated_amount, refs, date)
         else:
             tx.delete()
@@ -160,36 +161,9 @@ class GasAccountingProxy(AccountingProxy):
         """
         Register the payment of a supplier order.
 
-        1 Control if not yet exist a payment for this order
+        Control if not yet exist a payment for this order or a group of orders.
 
-        2 Control if Total amounted for Members are equal or not. If not compense the difference automaticaly? Ask to the comunity. For the moment do nothing.
         """
-
-#        Specifically, such registration is a two-step process:
-#        1. First, the GAS withdraws from each member's account an amount of money corresponding
-#           to the total cost of products (s)he bought during this order 
-#           (price & quantity are as recorded by the invoice!)
-#        2. Then, the GAS collects this money amounts and transfers them to the supplier's account 
-#        If the given supplier order hasn't been fully withdrawn by GAS members yet, raise ``MalformedTransaction``.
-#        from gasistafelice.gas.models import GASSupplierOrder
-#        # FIXME: adapt to "Gasista Felice"'s workflow model
-#        if order.status == GASSupplierOrder.WITHDRAWN:
-#            ## bill members for their orders to the GAS
-#            # only members participating to this order need to be billed
-#            for member in order.purchasers:
-#                # calculate amount to bill to this GAS member for orders (s)he issued 
-#                # w.r.t. the given supplier order 
-#                member_order_bill = 0 
-#                issued_member_orders = member.issued_orders.filter(ordered_product__order=order)
-#                for member_order in issued_member_orders:
-#                    price = member_order.ordered_product.delivered_price
-#                    quantity = member_order.withdrawn_amount 
-#                    member_order_bill += price * quantity
-#                self.withdraw_from_member_account(member, member_order_bill)
-            ## pay supplier
-#            self.pay_supplier(pact=order.pact, amount=order.total_amount)
-#        else:
-#            raise MalformedTransaction("Only fully withdrawn supplier orders are eligible to be payed")
 
         #retrieve existing payment
         if not refs:
@@ -204,7 +178,8 @@ class GasAccountingProxy(AccountingProxy):
             if tx:
                 #FIXME: something wrong. The old transaction is deleted and the new one loose refs
                 #simple accounting: transaction.ledger_entries.delete() but do not recreate the link to the original refs that permit to retrieve the transaction itself finding by order. see: get_supplier_order_data
-                update_transaction(tx, amount=amount)
+                tx = update_transaction(tx, amount=amount)
+                tx.add_references(refs)
 
     def get_supplier_order_data(self, order, refs=None):
         """
@@ -230,6 +205,20 @@ class GasAccountingProxy(AccountingProxy):
             return None
         else:
             return tx
+
+    def get_payments(self, refs, kind=None):
+        """
+        Get payment(s) by ref and kind.
+        """
+
+        if not refs:
+            return []
+        if not kind:
+            kind = 'PAYMENT'
+
+        txs = Transaction.objects.get_by_reference(refs).filter(kind=kind)
+
+        return txs
 
     def accounted_amount_by_gas_member(self, order):
         """
