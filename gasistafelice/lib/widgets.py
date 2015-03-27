@@ -8,6 +8,12 @@ from django.contrib.admin import widgets as admin_widgets
 
 from django.conf import settings
 
+from itertools import chain
+
+from django.forms.widgets import Select, CheckboxSelectMultiple, CheckboxInput, mark_safe
+from django.utils.encoding import force_unicode
+from django.utils.html import escape, conditional_escape
+
 #--------------------------------------------------------------------------------
 
 class RelatedFieldWidgetCanAdd(widgets.Select):
@@ -68,52 +74,45 @@ class DateFormatAwareWidget(admin_widgets.AdminDateWidget):
 
 class SplitDateTimeFieldWithClean(SplitDateTimeField):
 
-#    def __init__(self, *args, **kw):
-#        super(SplitDateTimeFieldWithClean, self).__init__(*args, **kw)
-#        self.fields.append( =settings.DATE_INPUT_FORMATS[0]
-
-#    class Media:
-#        #extend = True
-#        js = ('widget_util.js',)
-
     def render(self, name, *args, **kwargs):
         html = super(SplitDateTimeFieldWithClean, self).render(name, *args, **kwargs)
-        #plus = render_to_string("form/plus.html", {'field': name})
         plus = "<label >Test:</label>"
-        #print "renderrenderrenderrenderrenderrenderrenderrenderrender:  %s " % html
         return html+plus
 
-#    def render(self, name, value, attrs=None):
-#        return mark_safe(self.format_output(output))
-#    def format_output(self, rendered_widgets):
-#        """
-#        format_output that is called when returning output. 
-#        output is a list of rendered widgets html as strings
-#        """
-#        #print "rendered_widgets:  %s " % rendered_widgets
-#        rendered_widgets.insert(0, "<label >Test:</label>")
-#        return u''.join(rendered_widgets)
+#--------------------------------------------------------------------------------
 
-#class SplitDateTimeFieldWithClean(MultiWidget):
-
-#    def __init__(self, *args, **kw):
-#        widgets = (
-#            SplitDateTimeField,
-#            TextInput()
-#        )
-#        super(SplitDateTimeFieldWithClean, self).__init__(widgets, *args, **kw)
-
-#    def decompress(self, value):
-#        if value:
-#            if isinstance(value, bool):
-#                return ['bool', value]
-#            if isinstance(value, float):
-#                return ['float', value]
-#            if isinstance(value, int):
-#                return ['int', value]
-#            if isinstance(value, basestring):
-#                return ['string', value]
-#            else:
-#                raise Exception("Invalid type found: %s" % type(value))
-#        return [None, None]
+class CheckboxSelectMultipleWithDisabled(CheckboxSelectMultiple):
+    """
+    Subclass of Django's checkbox select multiple widget that allows disabling checkbox-options.
+    To disable an option, pass a dict instead of a string for its label,
+    of the form: {'label': 'option label', 'disabled': True}
+    """
+    def render(self, name, value, attrs=None, choices=()):
+        if value is None: value = []
+        has_id = attrs and 'id' in attrs
+        final_attrs = self.build_attrs(attrs, name=name)
+        output = [u'<ul>']
+        # Normalize to strings
+        str_values = set([force_unicode(v) for v in value])
+        for i, (option_value, option_label) in enumerate(chain(self.choices, choices)):
+            if final_attrs.has_key('disabled'):
+                del final_attrs['disabled']
+            if isinstance(option_label, dict):
+                if dict.get(option_label, 'disabled'):
+                    final_attrs = dict(final_attrs, disabled = 'disabled' )
+                option_label = option_label['label']
+            # If an ID attribute was given, add a numeric index as a suffix,
+            # so that the checkboxes don't all have the same ID attribute.
+            if has_id:
+                final_attrs = dict(final_attrs, id='%s_%s' % (attrs['id'], i))
+                label_for = u' for="%s"' % final_attrs['id']
+            else:
+                label_for = ''            
+            cb = CheckboxInput(final_attrs, check_test=lambda value: value in str_values)
+            option_value = force_unicode(option_value)
+            rendered_cb = cb.render(name, option_value)
+            option_label = conditional_escape(force_unicode(option_label))
+            output.append(u'<li><label%s>%s %s</label></li>' % (label_for, rendered_cb, option_label))
+        output.append(u'</ul>')
+        return mark_safe(u'\n'.join(output))
 

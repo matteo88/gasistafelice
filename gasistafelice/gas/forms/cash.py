@@ -32,6 +32,8 @@ from gasistafelice.consts import (
 import datetime
 from gasistafelice.utils import short_date
 
+from lib.widgets import CheckboxSelectMultipleWithDisabled
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -420,18 +422,25 @@ def get_html_insolutes(insolutes, EURO_TRANS=EURO_HTML):
     tot_eco_entries = 0
     tot_insolutes = 0
     stat = ''
+    display = ''
+    disabled = False
     for ins in insolutes:
         tot_insolutes += 1
         tot_ordered += ins.tot_price
         tot_invoiced += ins.invoice_amount or 0
         tot_eco_entries += ins.tot_curtail
 
-        choice = ugettext(u"<span>%(html_order)s<br />%(totals)s</span>") % {
+        display, disabled = ins.display_totals
+
+        choice = ugettext(u"<span>%(html_order)s<br /><span class='%(class_total)s'>%(totals)s</span></span>") % {
             'state': ins.current_state.name
-            , 'totals' : ins.display_totals.replace("euro",EURO_TRANS)
-            , 'html_order': u'<a class="resource order inline" href="%s">%s</a>' % (ins.get_absolute_url_page(), ins)
+            , 'totals' : display.replace("euro",EURO_TRANS)
+            , 'html_order': u'<a class="resource order inline" href="%s">%s</a>' % (ins.get_absolute_url_page(), ins),
+            'class_total': 'order_paid' if disabled else ''
+
         }
-        _choices.append((ins.pk, mark_safe(choice)))
+        #WAS: _choices.append((ins.pk, mark_safe(choice)))
+        _choices.append((ins.pk, {'label' : mark_safe(choice), 'disabled' : disabled}))
 
     #set order informations
     stat = ugettext(u"Totals (%(n)s insolutes) --> Expected: %(fam)s %(euro)s --> Actual: %(fatt)s %(euro)s --> Curtailed: %(eco)s %(euro)s") % {
@@ -740,7 +749,8 @@ class TransationPACTForm(BalanceForm):
 
     orders = forms.MultipleChoiceField(label=_("Insolute order(s)"), required=False
         , help_text = _("If chosen operation kind is order payment, you must select at least one order to pay")
-        , widget=forms.CheckboxSelectMultiple
+        #WAS: , widget=forms.CheckboxSelectMultiple
+        , widget=CheckboxSelectMultipleWithDisabled
     )
 
     causal = forms.CharField(label=_('Causal'), required=True, widget=forms.TextInput,

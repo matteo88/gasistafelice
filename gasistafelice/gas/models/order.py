@@ -287,12 +287,15 @@ class GASSupplierOrder(models.Model, PermissionResource):
     def display_totals(self):
         """Show totals expected, actual and curtailed"""
 
+        trans = self.payments_description
+        disabled = True if trans != "" else False
+
         return ugettext(u"Expected: <strong>%(fam)s</strong> euro --> Actual: <strong>%(fatt)s</strong> euro --> Curtailed: <strong>%(eco)s</strong> euro %(trans)s") % {
             'fam'    : "%.2f" % round(self.tot_price, 2)
             , 'fatt' : "%.2f" % round(self.invoice_amount or 0, 2)
             , 'eco'  : "%.2f" % round(self.tot_curtail, 2)
-            , 'trans': self.payments_description
-        }
+            , 'trans': trans
+        }, disabled 
 
     def do_transition(self, transition, user):
         super(GASSupplierOrder, self).do_transition(transition, user)
