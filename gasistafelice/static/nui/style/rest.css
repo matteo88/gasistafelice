@@ -437,3 +437,14 @@ TSTATE_UU=40
 
 .dbg{background-color: #F5DEB3 /* #D3D3D3 orange*/;}
 
+
+/* ================================================== */
+/* Not totally paid orders                            */
+/* ================================================== */
+
+
+.order_paid {
+    font-style:italic;
+    text-decoration:line-through;
+}
+
