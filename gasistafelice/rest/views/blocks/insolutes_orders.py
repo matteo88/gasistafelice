@@ -18,7 +18,8 @@ class Block(OpenOrdersBlock):
     def _get_resource_list(self, request):
         insolutes = request.resource.insolutes
         for insolute in insolutes:
-            insolute.more_details = insolute.display_totals.replace('euro', EURO_HTML)
+            display, disabled = insolute.display_totals
+            insolute.more_details = display.replace('euro', EURO_HTML)
         return insolutes
 
     def _get_user_actions(self, request):

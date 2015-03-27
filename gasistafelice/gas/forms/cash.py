@@ -355,9 +355,10 @@ class InvoiceOrderForm(forms.Form):
         self.__order = request.resource.order
         if self.__order:
             # display statistic
+            display,disabled = self.__order.display_totals  
             stat = ugettext(u"%(state)s - %(totals)s") % {
                 'state': self.__order.current_state.name
-                , 'totals': self.__order.display_totals.replace("euro",EURO_HTML)
+                , 'totals': display.replace("euro",EURO_HTML)
             }
             self.fields['amount'].help_text = stat
 
@@ -498,9 +499,10 @@ class InsoluteOrderForm(forms.Form):
                 self.fields['date'].help_text = ''
                 del self.fields['orders']
                 #set order informations
+                display, disabled = self.__order.display_totals  
                 stat = ugettext(u"%(state)s - %(totals)s") % {
                     'state': self.__order.current_state.name
-                    , 'totals': self.__order.display_totals.replace("euro",EURO_HTML)
+                    , 'totals': display.replace("euro",EURO_HTML)
                 }
 
             else:
