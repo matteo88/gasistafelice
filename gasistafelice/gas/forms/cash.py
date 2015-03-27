@@ -177,6 +177,7 @@ class NewEcoGASMemberForm(forms.Form):
         amounted = self.cleaned_data.get('amounted') or 0
         enabled = self.cleaned_data.get('applied')
 
+        #If we add a new family, the amount had to be always consistent (>0)
         if amounted > 0 and enabled:
 
             log.debug(u"Save NewEcoGASMemberForm enabled(%s) for %s" % (enabled, gm))
