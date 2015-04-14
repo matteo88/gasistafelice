@@ -1537,7 +1537,10 @@ class GASSupplierOrderProduct(models.Model, PermissionResource):
         )
 
     def __unicode__(self):
-        rv = ugettext('%(gasstock)s of order %(order)s') % { 'gasstock' : self.gasstock, 'order' : self.order}
+        try:
+            rv = ugettext('%(gasstock)s of order %(order)s') % { 'gasstock' : self.gasstock, 'order' : self.order}
+        except GASSupplierOrder.DoesNotExist as e:
+            rv += "Order deleted for ordered product [%s]" % self.pk
         #if settings.DEBUG:
         #    rv += " [%s]" % self.pk
         return rv

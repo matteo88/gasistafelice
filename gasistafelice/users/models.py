@@ -83,7 +83,12 @@ def on_ppr_save_set_default_role(sender, **kwargs):
 def on_ppr_delete_reset_default_role(sender, **kwargs):
 
     deleted_ppr = kwargs['instance']
-    p = deleted_ppr.principal #Principal can be a User or a Group
+    try:
+        p = deleted_ppr.principal #Principal can be a User or a Group
+    except User.DoesNotExist as e:
+        return
+    except Group.DoesNotExist as e:
+        return
 
     # Reset default role for user if it is not set
 
